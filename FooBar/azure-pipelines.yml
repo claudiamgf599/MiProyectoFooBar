@@ -1,0 +1,162 @@
+# ASP.NET Core
+# Build and test ASP.NET Core projects targeting .NET Core.
+# Add steps that run tests, create a NuGet package, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
+# Test
+
+trigger:
+- main
+
+pool:
+  name: WINDOWS
+
+variables:
+  buildConfiguration: 'Release'
+
+steps:
+- task: UseDotNet@2
+  displayName: 'Use .NET Core sdk 8'
+  inputs:
+    packageType: sdk
+    version: 8.0.201
+    installationPath: $(Agent.ToolsDirectory)/dotnet    
+    
+- task: DotNetCoreCLI@2
+  displayName: 'Install dotnet-stryker'
+  inputs:
+    command: custom
+    custom: tool
+    arguments: update dotnet-stryker --tool-path $(Agent.BuildDirectory)/tools
+
+- task: SonarQubePrepare@4
+  displayName: 'Prepare SonarQube'
+  inputs:
+    SonarQube: 'SonarCeiba'
+    scannerMode: 'MSBuild'
+    projectKey: 'co.com.ceiba:CeibaBlockNet8'
+    projectName: 'CeibaBlockNet8'
+    extraProperties: |
+      sonar.exclusions=Api/wwwroot/**,**/*Migrations*/*,**/*ModelConfig*/*
+      sonar.coverage.exclusions=**/*Exceptions*/*
+      
+- task: DotNetCoreCLI@2
+  displayName: 'Build solution'
+  inputs:
+    command: 'build'
+    projects: '**/*.sln'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Test solution'
+  inputs:
+    command: 'test'
+    projects: '**/*[Tt]est*/*.csproj'
+    arguments: '--configuration $(BuildConfiguration)  --collect "Code Coverage"'
+
+- task: Powershell@2
+  displayName: 'Run dotnet-stryker'
+  inputs:
+    workingDirectory: CeibaBlockNet8.Domain.Tests
+    targetType: 'inline'  
+    script: $(Agent.BuildDirectory)/tools/dotnet-stryker 
+    #arguments: '--reporters ["html","json"]'
+
+- task: PublishMutationReport@0
+  displayName: 'Publish Mutation Test Report'
+  inputs:
+    reportPattern: '**/mutation-report.html'
+
+- task: SonarQubeAnalyze@4
+  displayName: 'Run SonarQube Analizer'
+
+- task: SonarQubePublish@4
+  displayName: 'Publish SonarQube results'
+  inputs:
+    pollingTimeoutSec: '300'
+
+- task: sonar-buildbreaker@8
+  displayName: 'Break pipeline on SonarQube QualityGate failure'
+  inputs:
+    SonarQube: 'SonarCeiba'
+    
+- task: PowerShell@2
+      continueOnError: true
+      displayName: 'Dotnet list package deprecated'
+      condition: and(succeeded(), notIn(variables['Build.SourceBranchName'],'main','release','Release-Rates'))
+      inputs:
+        targetType: 'inline'
+        script: |
+          $output = dotnet list  package --deprecated
+          $errors = $output | Select-String '>' 
+          if ($errors.Count -gt 0)
+          {
+            foreach ($err in $errors)
+            {
+                Write-Host "##vso[task.logissue type=error]Reference to deprecated NuGet-package $err"
+            }
+            exit 1
+          }else
+          {
+                Write-Host "No deprecated NuGet-package"
+                exit 0
+          }
+
+- task: CmdLine@2
+  displayName: 'Dotnet list package vulnerable'
+  condition: and(succeeded(), notIn(variables['Build.SourceBranchName'],'main','release','Release-Rates'))
+  inputs:
+    script:  |
+      dotnet list package --vulnerable --include-transitive > packageVulnerabilities.log 2>&1
+      type packageVulnerabilities.log
+      findstr /i "critical" packageVulnerabilities.log > nul
+      if %errorlevel% equ 0 (
+          echo "##[warning]Has packages with critical vulnerabilities given current sources."
+          echo "##vso[task.complete result=SucceededWithIssues;]"
+      ) else (
+          echo Does not have packages with critical vulnerabilities given current sources.
+          exit /b 0
+      )
+
+- task: CmdLine@2
+  displayName: 'Dotnet project licenses'
+  condition: and(succeeded(), notIn(variables['Build.SourceBranchName'],'main','release'))
+  inputs:
+    script: |
+         dotnet tool install --global dotnet-project-licenses
+         dotnet-project-licenses --input Staffing.sln > licenses.log 2>&1
+
+- task: CmdLine@2
+  displayName: 'Check AGPL or Open Sofware licenses'
+  condition: and(succeeded(), notIn(variables['Build.SourceBranchName'],'main','release'))
+  inputs:
+    script: |
+       type licenses.log
+       findstr /i /C:"agpl" /C:"Open Software License" licenses.log > nul
+       if %errorlevel% equ 0 (
+           echo Has AGPL or Open Software Licenses given current sources.
+           exit /b 1
+       ) else (
+           echo Does not have AGPL or Open Software Licenses given current sources.
+           exit /b 0
+           )
+    
+- task: CmdLine@2
+  displayName: 'Check GPL licenses'
+  condition: and(succeeded(), notIn(variables['Build.SourceBranchName'],'main','release'))
+  inputs:
+    script: |
+       type licenses.log
+       findstr /i /C:"gpl" licenses.log > nul
+       if %errorlevel% equ 0 (
+           echo "##[warning]Has GPL Licenses given current sources, check manually."
+           echo "##vso[task.complete result=SucceededWithIssues;]"
+       ) else (
+           echo Does not have GPL Licenses given current sources.
+           exit /b 0
+       )
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish artifact'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'

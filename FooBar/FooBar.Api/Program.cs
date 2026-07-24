@@ -1,0 +1,98 @@
+using FooBar.Api.ApiHandlers;
+using FooBar.Api.Filters;
+using FooBar.Api.Middleware;
+using FooBar.Infrastructure.DataSource;
+using FooBar.Infrastructure.Extensions;
+using FluentValidation;
+
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Prometheus;
+using Serilog;
+using Serilog.Debugging;
+using System.Reflection;
+
+var builder = WebApplication.CreateBuilder(args);
+var config = builder.Configuration;
+
+builder.Services.AddValidatorsFromAssemblyContaining<Program>(ServiceLifetime.Singleton);
+
+/*builder.Services.AddDbContext<DataContext>(opts =>
+{
+    opts.UseSqlServer(config.GetConnectionString("db"));
+});*/
+
+builder.Services.AddDbContext<DataContext>(opts =>
+{
+    var useInMemory = config.GetValue<bool>("UseInMemoryDatabase");
+    if (useInMemory)
+    {
+        opts.UseInMemoryDatabase("InMemoryDb");
+    }
+    else
+    {
+        opts.UseSqlServer(config.GetConnectionString("db"));
+    }
+});
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<DataContext>()
+    .ForwardToPrometheus();
+
+builder.Services.AddAutoMapper(Assembly.Load("FooBar.Application"));
+
+builder.Services.AddServices();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(Assembly.Load("FooBar.Application"));
+});
+
+builder.Host.UseSerilog((_, loggerconfiguration) =>
+    loggerconfiguration
+        .WriteTo.Console()
+        .WriteTo.File("logs.txt", Serilog.Events.LogEventLevel.Information));
+
+SelfLog.Enable(Console.Error);
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+
+app.UseHttpMetrics();
+
+app.UseMiddleware<AppExceptionHandlerMiddleware>();
+
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResultStatusCodes =
+    {
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Degraded] = StatusCodes.Status200OK,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+    }
+});
+
+app.UseRouting().UseEndpoints(endpoint =>
+{
+    endpoint.MapMetrics();
+});
+
+app.MapGroup("/api/invoice")
+    .MapInvoice()
+    .AddEndpointFilterFactory(ValidationFilter.ValidationFilterFactory)
+    .WithTags("Invoices");
+
+app.Seed();
+
+app.Run();

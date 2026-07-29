@@ -95,6 +95,10 @@ app.UseRouting().UseEndpoints(endpoint =>
     endpoint.MapMetrics();
 });
 
+// Crea un grupo de endpoints con un prefijo común
+// . MapInvoice llama al extension method definido en InvoiceApi. Registra todos los MapPost/MapGet dentro del grupo
+// .AddEndpointFilterFactory agrega un filtro que se ejecuta antes de cada handler
+// .WithTags("Invoices") — agrupa estos endpoints en Swagger bajo la etiqueta "Invoices"
 app.MapGroup("/api/invoice")
     .MapInvoice()
     .AddEndpointFilterFactory(ValidationFilter.ValidationFilterFactory)

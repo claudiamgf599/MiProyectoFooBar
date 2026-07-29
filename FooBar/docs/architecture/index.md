@@ -144,6 +144,10 @@ graph TB
 - `FooBar.Api/Program.cs` — Configuración de la aplicación y registro de servicios
 - `FooBar.Domain/` — Código fuente real de entidades, puertos y servicios de dominio
 
+## Documentación Complementaria
+
+- [Servicios del Sistema](services.md) — Documentación detallada de todos los servicios por capa arquitectónica
+
 ---
 
 **Este GPS es una vista arquitectónica ejecutiva para orientar decisiones y priorizar evolución del sistema.**

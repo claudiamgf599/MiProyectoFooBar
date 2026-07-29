@@ -47,6 +47,13 @@ builder.Services.AddServices();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Esto escanea automáticamente el ensamblado y encuentra:
+/*
+InsertInvoiceCommand          ──►  InsertInvoiceHandler : IRequestHandler<InsertInvoiceCommand, Guid>
+CancelInvoiceCommand          ──►  CancelInvoiceHandler : IRequestHandler<CancelInvoiceCommand, Unit>
+GetInvoiceByIdQuery           ──►  GetInvoiceByIdHandler : IRequestHandler<GetInvoiceByIdQuery, InvoiceDto>
+*/
+
 builder.Services.AddMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssembly(Assembly.Load("FooBar.Application"));

@@ -7,6 +7,7 @@ namespace FooBar.Application.Invoice.Command.Factory
 {
     public class InvoiceFactory(ICustomerRepository customerRepository, IProductRepository productRepository)
     {
+        // TODO - desglosar todo esto con la IA
         public async Task<Domain.Invoices.Model.Entity.Invoice> CreateAsync(InsertInvoiceCommand insertInvoiceCommand)
         {
             var customer = await customerRepository.GetByIdAsync(insertInvoiceCommand.CustomerId);

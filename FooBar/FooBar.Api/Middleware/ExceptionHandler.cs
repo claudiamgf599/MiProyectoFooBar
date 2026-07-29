@@ -30,14 +30,13 @@ public class AppExceptionHandlerMiddleware
         {
             _logger.LogError(ex, "Error: {Message}", ex.Message);
 
-            var result = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                ErrorMessage = ex.Message
-            });
-
-            context.Response.ContentType = ContentType.ApplicationJson.ToString();
+            context.Response.ContentType = "application/json";
             context.Response.StatusCode = GetStatusCodeForException(ex);
-            await context.Response.WriteAsync(result);
+            
+            // Serialize to bytes and write directly to avoid PipeWriter issues in .NET 10
+            var errorResponse = new { ErrorMessage = ex.Message };
+            var jsonBytes = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(errorResponse);
+            await context.Response.Body.WriteAsync(jsonBytes);
         }
     }
 

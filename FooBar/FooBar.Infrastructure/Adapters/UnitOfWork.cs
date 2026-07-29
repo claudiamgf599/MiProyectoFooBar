@@ -8,6 +8,7 @@ public class UnitOfWork(DataContext context) : IUnitOfWork
 {
     public async Task SaveAsync(CancellationToken? cancellationToken = null)
     {
+        // Si no se pasa token, crea uno que NUNCA se cancela
         var token = cancellationToken ?? new CancellationTokenSource().Token;
 
         context.ChangeTracker.DetectChanges();
@@ -22,6 +23,7 @@ public class UnitOfWork(DataContext context) : IUnitOfWork
             entry.Property(entryStatus[entry.State]).CurrentValue = DateTime.UtcNow;
         }
 
+        // Todas las operaciones async reciben el token
         await context.SaveChangesAsync(token);
     }
 }

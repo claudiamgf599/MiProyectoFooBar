@@ -2,6 +2,7 @@
 using FooBar.Domain.Invoices.Port;
 using FooBar.Infrastructure.Adapters;
 using FooBar.Infrastructure.Port;
+using System.Linq.Expressions;
 
 namespace FooBar.Infrastructure.Invoices.Adapters
 {
@@ -21,6 +22,11 @@ namespace FooBar.Infrastructure.Invoices.Adapters
         public Task<Invoice> GetByIdAsync(Guid id, string? include = default)
         {
             return invoiceRepository.GetOneAsync(id, include);
+        }
+
+        public Task<IEnumerable<Invoice>> GetManyAsync(Expression<Func<Invoice, bool>>? filter = null)
+        {
+            return invoiceRepository.GetManyAsync(filter);
         }
     }
 }

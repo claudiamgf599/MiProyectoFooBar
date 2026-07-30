@@ -5,6 +5,7 @@
         public Guid Id { get; set; }
         public decimal ValueTotal { get; set; }
         public string State { get; set; } = default!;
+        public string? Note { get; set; }
         public CustomerDto Customer { get; set; } = default!;
         public IEnumerable<ProductInvoiceDto> ProductsInvoice { get; set; } = default!;
 

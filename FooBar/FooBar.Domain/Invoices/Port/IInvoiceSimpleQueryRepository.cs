@@ -5,5 +5,6 @@ namespace FooBar.Domain.Invoices.Port
     public interface IInvoiceSimpleQueryRepository
     {
         Task<IEnumerable<SummaryInvoiceDto>> GetAllCancelAsync();
+        Task<IEnumerable<NoteDto>> GetAllWithNotesAsync();
     }
 }

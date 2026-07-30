@@ -38,6 +38,25 @@ namespace FooBar.Domain.Invoices.Model.Entity
 
         public decimal ValueTotal { get; private set; }
 
+        public string? Note { get; private set; }
+
+        const int MinNoteLength = 1;
+        const int MaxNoteLength = 500;
+
+        public void SetNote(string note)
+        {
+            note.ValidateRequired("the note should not be null or empty.");
+            note.ValidateLength(MinNoteLength, MaxNoteLength, 
+                $"the note should be between {MinNoteLength} and {MaxNoteLength} characters.");
+            
+            if (State == InvoiceState.Canceled)
+            {
+                throw new CoreBusinessException("cannot add a note to a canceled invoice.");
+            }
+            
+            Note = note.Trim();
+        }
+
         public required InvoiceState State
         {
             get => _state;

@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using FooBar.Application.Invoice.Query.Dto;
+using FooBar.Domain.Invoices.Model.Dto;
 
 namespace FooBar.Application.Invoice
 {
@@ -11,6 +12,7 @@ namespace FooBar.Application.Invoice
             CreateMap<Domain.Customers.Entity.Customer, CustomerDto>();
             CreateMap<Domain.Invoices.Model.Entity.ProductInvoice, ProductInvoiceDto>();
             CreateMap<Domain.Products.Entity.Product, ProductDto>();
+            CreateMap<Domain.Invoices.Model.Entity.Invoice, NoteDto>();
         }
     }
 }

@@ -26,24 +26,23 @@ public class AppExceptionHandlerMiddleware
         {
             await _next.Invoke(context);
         }
+        catch (Domain.Exceptions.CoreBusinessException ex)
+        {
+            _logger.LogError(ex, "Business error: {Message}", ex.Message);
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(new { Error = ex.Message }));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Unauthorized error: {Message}", ex.Message);
+            context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+            await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(new { Error = ex.Message }));
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error: {Message}", ex.Message);
-
-            context.Response.ContentType = "application/json";
-            context.Response.StatusCode = GetStatusCodeForException(ex);
-            
-            // Serialize to bytes and write directly to avoid PipeWriter issues in .NET 10
-            var errorResponse = new { ErrorMessage = ex.Message };
-            var jsonBytes = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(errorResponse);
-            await context.Response.Body.WriteAsync(jsonBytes);
+            _logger.LogError(ex, "Unexpected error: {Message}", ex.Message);
+            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(new { Error = "An unexpected error occurred." }));
         }
-    }
-
-    private int GetStatusCodeForException(Exception ex)
-    {
-        return StatusCodes.TryGetValue(ex.GetType(), out var statusCode)
-            ? (int)statusCode
-            : (int)HttpStatusCode.InternalServerError;
     }
 }
